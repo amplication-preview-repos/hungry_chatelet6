@@ -16,17 +16,35 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { RestaurantService } from "../restaurant.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { RestaurantCreateInput } from "./RestaurantCreateInput";
 import { Restaurant } from "./Restaurant";
 import { RestaurantFindManyArgs } from "./RestaurantFindManyArgs";
 import { RestaurantWhereUniqueInput } from "./RestaurantWhereUniqueInput";
 import { RestaurantUpdateInput } from "./RestaurantUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class RestaurantControllerBase {
-  constructor(protected readonly service: RestaurantService) {}
+  constructor(
+    protected readonly service: RestaurantService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Restaurant })
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createRestaurant(
     @common.Body() data: RestaurantCreateInput
   ): Promise<Restaurant> {
@@ -48,9 +66,18 @@ export class RestaurantControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Restaurant] })
   @ApiNestedQuery(RestaurantFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async restaurants(@common.Req() request: Request): Promise<Restaurant[]> {
     const args = plainToClass(RestaurantFindManyArgs, request.query);
     return this.service.restaurants({
@@ -71,9 +98,18 @@ export class RestaurantControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Restaurant })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async restaurant(
     @common.Param() params: RestaurantWhereUniqueInput
   ): Promise<Restaurant | null> {
@@ -101,9 +137,18 @@ export class RestaurantControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Restaurant })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateRestaurant(
     @common.Param() params: RestaurantWhereUniqueInput,
     @common.Body() data: RestaurantUpdateInput
@@ -139,6 +184,14 @@ export class RestaurantControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Restaurant })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteRestaurant(
     @common.Param() params: RestaurantWhereUniqueInput
   ): Promise<Restaurant | null> {

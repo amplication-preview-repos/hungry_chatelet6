@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Restaurant } from "./Restaurant";
 import { RestaurantCountArgs } from "./RestaurantCountArgs";
 import { RestaurantFindManyArgs } from "./RestaurantFindManyArgs";
@@ -21,10 +27,20 @@ import { CreateRestaurantArgs } from "./CreateRestaurantArgs";
 import { UpdateRestaurantArgs } from "./UpdateRestaurantArgs";
 import { DeleteRestaurantArgs } from "./DeleteRestaurantArgs";
 import { RestaurantService } from "../restaurant.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Restaurant)
 export class RestaurantResolverBase {
-  constructor(protected readonly service: RestaurantService) {}
+  constructor(
+    protected readonly service: RestaurantService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "read",
+    possession: "any",
+  })
   async _restaurantsMeta(
     @graphql.Args() args: RestaurantCountArgs
   ): Promise<MetaQueryPayload> {
@@ -34,14 +50,26 @@ export class RestaurantResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Restaurant])
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "read",
+    possession: "any",
+  })
   async restaurants(
     @graphql.Args() args: RestaurantFindManyArgs
   ): Promise<Restaurant[]> {
     return this.service.restaurants(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Restaurant, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "read",
+    possession: "own",
+  })
   async restaurant(
     @graphql.Args() args: RestaurantFindUniqueArgs
   ): Promise<Restaurant | null> {
@@ -52,7 +80,13 @@ export class RestaurantResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Restaurant)
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "create",
+    possession: "any",
+  })
   async createRestaurant(
     @graphql.Args() args: CreateRestaurantArgs
   ): Promise<Restaurant> {
@@ -62,7 +96,13 @@ export class RestaurantResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Restaurant)
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "update",
+    possession: "any",
+  })
   async updateRestaurant(
     @graphql.Args() args: UpdateRestaurantArgs
   ): Promise<Restaurant | null> {
@@ -82,6 +122,11 @@ export class RestaurantResolverBase {
   }
 
   @graphql.Mutation(() => Restaurant)
+  @nestAccessControl.UseRoles({
+    resource: "Restaurant",
+    action: "delete",
+    possession: "any",
+  })
   async deleteRestaurant(
     @graphql.Args() args: DeleteRestaurantArgs
   ): Promise<Restaurant | null> {

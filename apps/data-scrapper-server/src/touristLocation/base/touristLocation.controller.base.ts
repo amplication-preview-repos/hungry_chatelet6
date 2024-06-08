@@ -16,17 +16,35 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { TouristLocationService } from "../touristLocation.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { TouristLocationCreateInput } from "./TouristLocationCreateInput";
 import { TouristLocation } from "./TouristLocation";
 import { TouristLocationFindManyArgs } from "./TouristLocationFindManyArgs";
 import { TouristLocationWhereUniqueInput } from "./TouristLocationWhereUniqueInput";
 import { TouristLocationUpdateInput } from "./TouristLocationUpdateInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class TouristLocationControllerBase {
-  constructor(protected readonly service: TouristLocationService) {}
+  constructor(
+    protected readonly service: TouristLocationService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: TouristLocation })
+  @nestAccessControl.UseRoles({
+    resource: "TouristLocation",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createTouristLocation(
     @common.Body() data: TouristLocationCreateInput
   ): Promise<TouristLocation> {
@@ -47,9 +65,18 @@ export class TouristLocationControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [TouristLocation] })
   @ApiNestedQuery(TouristLocationFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "TouristLocation",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async touristLocations(
     @common.Req() request: Request
   ): Promise<TouristLocation[]> {
@@ -71,9 +98,18 @@ export class TouristLocationControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: TouristLocation })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "TouristLocation",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async touristLocation(
     @common.Param() params: TouristLocationWhereUniqueInput
   ): Promise<TouristLocation | null> {
@@ -100,9 +136,18 @@ export class TouristLocationControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: TouristLocation })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "TouristLocation",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateTouristLocation(
     @common.Param() params: TouristLocationWhereUniqueInput,
     @common.Body() data: TouristLocationUpdateInput
@@ -137,6 +182,14 @@ export class TouristLocationControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: TouristLocation })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "TouristLocation",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteTouristLocation(
     @common.Param() params: TouristLocationWhereUniqueInput
   ): Promise<TouristLocation | null> {
